@@ -158,6 +158,32 @@ TEMPLATES = [
 
 WSGI_APPLICATION = '{{cookiecutter.app_name}}.wsgi.application'
 
+
+
+if os.getenv('DOCKER_POSTGRESQL_DB_HOSTCONTAINER'):
+    DB_HOST = os.getenv('POSTGRESQL_DB_HOST', '127.0.0.1')
+elif os.getenv('DOCKER_CONTAINER'):
+    DB_HOST = 'db'
+else:
+    DB_HOST = os.getenv('DB_HOST', '127.0.0.1')
+DB_ENGINE = 'django.db.backends.postgresql'
+DB_USER = os.getenv('POSTGRESQL_DB_USER', 'user')
+DB_PASS = os.getenv('POSTGRESQL_DB_PASS', 'passwd')
+DB_NAME = os.getenv('POSTGRESQL_DB_NAME', 'project_db')
+DB_PORT = os.getenv('POSTGRESQL_DB_PORT', '5432')
+
+
+DATABASES = {
+    'default': {
+        'ENGINE': DB_ENGINE,
+        'HOST': DB_HOST,
+        'PORT': DB_PORT,
+        'NAME': DB_NAME,
+        'USER': DB_USER,
+        'PASSWORD': DB_PASS,
+    }
+}
+
 if TESTING:
     DATABASES = {
         'default': {
@@ -317,3 +343,37 @@ LOGGING = {
         },
     }
 }
+
+if DEBUG:
+    INSTALLED_APPS += ['debug_toolbar',]
+    MIDDLEWARE += [
+        'debug_toolbar.middleware.DebugToolbarMiddleware',
+    ]
+
+# KeyCloak
+USE_KEYCLOAK = bool(int(os.getenv('USE_KEYCLOAK', 0)))
+
+if USE_KEYCLOAK is not None:
+    INSTALLED_APPS += [ 
+        'django_keycloak.apps.KeycloakAppConfig',
+    ]
+    #     
+#     'django_keycloak.middleware.RemoteUserAuthenticationMiddleware',
+
+    MIDDLEWARE += [ 
+        'django_keycloak.middleware.BaseKeycloakMiddleware', 
+    ]
+    PASSWORD_HASHERS = [
+        'django_keycloak.hashers.PBKDF2SHA512PasswordHasher',
+    ]
+    AUTHENTICATION_BACKENDS = [
+        'django_keycloak.auth.backends.KeycloakAuthorizationCodeBackend',
+        'django.contrib.auth.backends.ModelBackend', 
+    ]
+    KEYCLOAK_OIDC_PROFILE_MODEL = 'django_keycloak.OpenIdConnectProfile'
+    KEYCLOAK_BEARER_AUTHENTICATION_EXEMPT_PATHS = [
+        r'^admin/',
+    ]
+#     KEYCLOAK_SKIP_SSL_VERIFY = True
+    
+    LOGIN_URL = 'keycloak_login'
